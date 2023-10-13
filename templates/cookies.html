@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Displaying the cookies</title>
+</head>
+<body>
+    <h2>Cookies :</h2>
+    <ul>
+        {% for cookie in cookies %}
+            <li>{{ cookie.name }} : {{ cookie.value }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
