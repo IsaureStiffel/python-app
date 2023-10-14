@@ -1,6 +1,11 @@
 from flask import Flask, request, render_template
 import logging
 import requests
+import os
+import pandas as pd
+import itertools
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import RunReportRequest
 
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
@@ -12,27 +17,34 @@ logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/fetch-google-analytics-data', methods=['GET'])
 def fetch_google_analytics_data():
-    SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
-    SERVICE_ACCOUNT_FILE = 'datasourcelab2-7fabd9746820.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'datasourcelab2-c38acbab07a1.json'
+    PROPERTY_ID = '407471832'
+    starting_date = "28daysAgo"
+    ending_date = "yesterday"
 
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    client = BetaAnalyticsDataClient()
     
-    service = build('analytics', 'v3', credentials=credentials)
+    def get_visitor_count(client, property_id):
+        request = RunReportRequest(
+            property=f"properties/{property_id}",
+            date_ranges=[{"start_date": starting_date, "end_date": ending_date}],
+            metrics=[{"name": "activeUsers"}]
+        )
 
-    # Acess the google analytics data
-    def get_visitor_count(service):
-        response = service.data().realtime().get(
-            ids='ga:407471832',
-            metrics='ga:activeVisitors',
-        ).execute()
+        response = client.run_report(request)
+
+        # return active_users_metric
         return response
 
-    # Retreive info about the number of visitor
-    visitor_data = get_visitor_count(service)
-    visitor_count = visitor_data.get('rows', [])[0][0]
+    # Get the visitor count using the function
+    response = get_visitor_count(client, PROPERTY_ID)
 
-    return f'Nombre de visiteurs actifs : {visitor_count}'
+    if response and response.row_count > 0:
+        metric_value = response.rows[0].metric_values[0].value
+    else:
+        metric_value = "N/A"  # Handle the case where there is no data
+
+    return f'Number of active visitors : {metric_value}'
 
 
 @app.route("/")
@@ -48,7 +60,21 @@ src="https://www.googletagmanager.com/gtag/js?id=G-E44BHZD8C7"></script>
  gtag('config', ' G-E44BHZD8C7');
 </script>
  """
- return prefix_google + "Hello World"
+ page =  """
+ <br></br>
+<a href="/logger">
+    Go to logger page 
+</a>
+<br></br>
+<a href="/google-request">
+    Go to google requests and cookies page 
+</a>
+<br></br>
+<a href="/fetch-google-analytics-data">
+    Check Google Analytics Request Visitors 
+</a>
+"""
+ return prefix_google + "Hello World" + page
 
 @app.route("/logger", methods=['GET', 'POST'])
 def logger():
