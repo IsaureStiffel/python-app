@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 import logging
 import requests
 import os
@@ -11,9 +11,30 @@ from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from pytrends.request import TrendReq
+
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.DEBUG)
+
+@app.route('/chart_data')
+def chart_data():
+    pytrends = TrendReq(hl='en-US', tz=360)
+    keywords = ["Harry Potter", "Star Wars"]
+    pytrends.build_payload(keywords, timeframe='today 12-m', geo='US')
+    interest_over_time_df = pytrends.interest_over_time()
+
+    data = {
+        'dates': interest_over_time_df.index.strftime('%Y-%m-%d').tolist(),
+        'HarryPotter': interest_over_time_df['Harry Potter'].tolist(),
+        'StarWars': interest_over_time_df['Star Wars'].tolist()
+    }
+
+    return jsonify(data)
+
+@app.route('/chart_data_render')
+def index():
+    return render_template('chart_trend_data.html')
 
 @app.route('/fetch-google-analytics-data', methods=['GET'])
 def fetch_google_analytics_data():
@@ -72,6 +93,10 @@ src="https://www.googletagmanager.com/gtag/js?id=G-E44BHZD8C7"></script>
 <br></br>
 <a href="/fetch-google-analytics-data">
     Check Google Analytics Request Visitors 
+</a>
+<br></br>
+<a href="/chart_data_render">
+    Check trends for Harry Potter and Star Wars 
 </a>
 """
  return prefix_google + "Hello World" + page
